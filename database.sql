@@ -5,7 +5,7 @@ CREATE TABLE SanPham (
     GiaNhapNuoc DECIMAL(15,2),
     GiaTriVo DECIMAL(15,2)
 );
-
+GO
 
 CREATE TABLE KhachHang (
     MaKH VARCHAR(10) PRIMARY KEY,
@@ -14,7 +14,7 @@ CREATE TABLE KhachHang (
     SDT VARCHAR(15),
     SoVoDangGiu INT DEFAULT 0
 );
-
+GO
 
 CREATE TABLE NhaCungCap (
     MaNCC VARCHAR(10) PRIMARY KEY,
@@ -23,7 +23,7 @@ CREATE TABLE NhaCungCap (
     CongNoTienNhap DECIMAL(15,2) DEFAULT 0,
     SoVoNoNCC INT DEFAULT 0
 );
-
+GO
 
 CREATE TABLE Kho (
     MaKho VARCHAR(10) PRIMARY KEY,
@@ -31,7 +31,7 @@ CREATE TABLE Kho (
     SoLuongBinhDay INT DEFAULT 0,
     SoLuongVoRong INT DEFAULT 0
 );
-
+GO
 
 CREATE TABLE HoaDonBan (
     MaHD VARCHAR(10) PRIMARY KEY,
@@ -44,7 +44,7 @@ CREATE TABLE HoaDonBan (
     TienVo DECIMAL(15,2),
     TongTien DECIMAL(15,2)
 );
-
+GO
 
 CREATE TABLE HoaDonNhap (
     MaHDN VARCHAR(10) PRIMARY KEY,
@@ -55,14 +55,14 @@ CREATE TABLE HoaDonNhap (
     SL_VoTraNCC INT,
     TongTienNhap DECIMAL(15,2)
 );
+GO
 
-ALTER TRIGGER trg_SauKhiBanHang
+CREATE TRIGGER trg_SauKhiBanHang
 ON HoaDonBan
 AFTER INSERT
 AS
 BEGIN
     SET NOCOUNT ON;
-    
     UPDATE h
     SET h.TienNuoc = i.SL_LayMoi * s.GiaBanLeNuoc,
         h.TienVo = (i.SL_LayMoi - i.SL_VoTra) * s.GiaTriVo,
@@ -84,13 +84,12 @@ BEGIN
 END;
 GO
 
-ALTER TRIGGER trg_SauKhiNhapHang
+CREATE TRIGGER trg_SauKhiNhapHang
 ON HoaDonNhap
 AFTER INSERT
 AS
 BEGIN
     SET NOCOUNT ON;
-
     UPDATE k
     SET k.SoLuongBinhDay = k.SoLuongBinhDay + i.SL_NhapMoi,
         k.SoLuongVoRong = k.SoLuongVoRong - i.SL_VoTraNCC
@@ -109,10 +108,9 @@ GO
 CREATE PROCEDURE sp_LayDanhSachNoKhach
 AS
 BEGIN
-    SELECT MaKH, TenKH, SDT, SoVoDangGiu 
-    FROM KhachHang 
-    WHERE SoVoDangGiu <> 0;
+    SELECT MaKH, TenKH, SDT, SoVoDangGiu FROM KhachHang WHERE SoVoDangGiu <> 0;
 END;
+GO
 
 CREATE PROCEDURE sp_XemTonKho
 AS
@@ -121,3 +119,4 @@ BEGIN
     FROM Kho k
     JOIN SanPham s ON k.MaSP = s.MaSP;
 END;
+GO
