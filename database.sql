@@ -56,57 +56,68 @@ CREATE TABLE HoaDonNhap (
     TongTienNhap DECIMAL(15,2)
 );
 
-CREATE TRIGGER trg_SauKhiBanHang
+ALTER TRIGGER trg_SauKhiBanHang
 ON HoaDonBan
 AFTER INSERT
 AS
 BEGIN
     SET NOCOUNT ON;
     
-    DECLARE @MaHD VARCHAR(10), @MaKH VARCHAR(10), @MaSP VARCHAR(10);
-    DECLARE @P INT, @Q INT, @GiaNuoc DECIMAL(15,2), @GiaVo DECIMAL(15,2);
+    UPDATE h
+    SET h.TienNuoc = i.SL_LayMoi * s.GiaBanLeNuoc,
+        h.TienVo = (i.SL_LayMoi - i.SL_VoTra) * s.GiaTriVo,
+        h.TongTien = (i.SL_LayMoi * s.GiaBanLeNuoc) + ((i.SL_LayMoi - i.SL_VoTra) * s.GiaTriVo)
+    FROM HoaDonBan h
+    JOIN inserted i ON h.MaHD = i.MaHD
+    JOIN SanPham s ON i.MaSP = s.MaSP;
 
-    SELECT @MaHD = MaHD, @MaKH = MaKH, @MaSP = MaSP, @P = SL_LayMoi, @Q = SL_VoTra 
-    FROM inserted;
+    UPDATE k
+    SET k.SoLuongBinhDay = k.SoLuongBinhDay - i.SL_LayMoi,
+        k.SoLuongVoRong = k.SoLuongVoRong + i.SL_VoTra
+    FROM Kho k
+    JOIN inserted i ON k.MaSP = i.MaSP;
 
-    SELECT @GiaNuoc = GiaBanLeNuoc, @GiaVo = GiaTriVo FROM SanPham WHERE MaSP = @MaSP;
-
-    UPDATE HoaDonBan
-    SET TienNuoc = @P * @GiaNuoc,
-        TienVo = (@P - @Q) * @GiaVo,
-        TongTien = (@P * @GiaNuoc) + ((@P - @Q) * @GiaVo)
-    WHERE MaHD = @MaHD;
-
-    UPDATE Kho 
-    SET SoLuongBinhDay = SoLuongBinhDay - @P,
-        SoLuongVoRong = SoLuongVoRong + @Q
-    WHERE MaSP = @MaSP;
-
-    UPDATE KhachHang SET SoVoDangGiu = SoVoDangGiu + (@P - @Q) WHERE MaKH = @MaKH;
+    UPDATE kh
+    SET kh.SoVoDangGiu = kh.SoVoDangGiu + (i.SL_LayMoi - i.SL_VoTra)
+    FROM KhachHang kh
+    JOIN inserted i ON kh.MaKH = i.MaKH;
 END;
+GO
 
-CREATE TRIGGER trg_SauKhiNhapHang
+ALTER TRIGGER trg_SauKhiNhapHang
 ON HoaDonNhap
 AFTER INSERT
 AS
 BEGIN
     SET NOCOUNT ON;
 
-    DECLARE @MaHDN VARCHAR(10), @MaNCC VARCHAR(10), @MaSP VARCHAR(10);
-    DECLARE @Z INT, @Alpha INT, @GiaNhap DECIMAL(15,2), @GiaVo DECIMAL(15,2);
+    UPDATE k
+    SET k.SoLuongBinhDay = k.SoLuongBinhDay + i.SL_NhapMoi,
+        k.SoLuongVoRong = k.SoLuongVoRong - i.SL_VoTraNCC
+    FROM Kho k
+    JOIN inserted i ON k.MaSP = i.MaSP;
 
-    SELECT @MaHDN = MaHDN, @MaNCC = MaNCC, @MaSP = MaSP, @Z = SL_NhapMoi, @Alpha = SL_VoTraNCC 
-    FROM inserted;
+    UPDATE ncc
+    SET ncc.SoVoNoNCC = ncc.SoVoNoNCC + (i.SL_NhapMoi - i.SL_VoTraNCC),
+        ncc.CongNoTienNhap = ncc.CongNoTienNhap + (i.SL_NhapMoi * s.GiaNhapNuoc) + ((i.SL_NhapMoi - i.SL_VoTraNCC) * s.GiaTriVo)
+    FROM NhaCungCap ncc
+    JOIN inserted i ON ncc.MaNCC = i.MaNCC
+    JOIN SanPham s ON i.MaSP = s.MaSP;
+END;
+GO
 
-    SELECT @GiaNhap = GiaNhapNuoc, @GiaVo = GiaTriVo FROM SanPham WHERE MaSP = @MaSP;
+CREATE PROCEDURE sp_LayDanhSachNoKhach
+AS
+BEGIN
+    SELECT MaKH, TenKH, SDT, SoVoDangGiu 
+    FROM KhachHang 
+    WHERE SoVoDangGiu <> 0; -- Chỉ lấy những người đang giữ vỏ
+END;
 
-    UPDATE Kho 
-    SET SoLuongBinhDay = SoLuongBinhDay + @Z,
-        SoLuongVoRong = SoLuongVoRong - @Alpha
-    WHERE MaSP = @MaSP;
-
-    UPDATE NhaCungCap 
-    SET SoVoNoNCC = SoVoNoNCC + (@Z - @Alpha),
-        CongNoTienNhap = CongNoTienNhap + (@Z * @GiaNhap) + ((@Z - @Alpha) * @GiaVo)
-    WHERE MaNCC = @MaNCC;
+CREATE PROCEDURE sp_XemTonKho
+AS
+BEGIN
+    SELECT s.TenSP, k.SoLuongBinhDay, k.SoLuongVoRong
+    FROM Kho k
+    JOIN SanPham s ON k.MaSP = s.MaSP;
 END;
