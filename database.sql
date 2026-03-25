@@ -111,7 +111,7 @@ AS
 BEGIN
     SELECT MaKH, TenKH, SDT, SoVoDangGiu 
     FROM KhachHang 
-    WHERE SoVoDangGiu <> 0; -- Chỉ lấy những người đang giữ vỏ
+    WHERE SoVoDangGiu <> 0;
 END;
 
 CREATE PROCEDURE sp_XemTonKho
